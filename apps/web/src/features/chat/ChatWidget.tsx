@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
-import type { ChatMessage } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSocketConnected } from '@/lib/socket';
 import { cn } from '@/lib/utils';
-import { ownSocketIds } from '@/realtime/socket';
-import { useSocketConnected } from '@/realtime/useSocketConnected';
-import { useProjectChat } from './useProjectChat';
+import { useProjectChat, type DisplayedMessage } from './useProjectChat';
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
 });
 
-function MessageBubble({ message }: { message: ChatMessage }) {
-  const mine = ownSocketIds.has(message.senderId);
+function MessageBubble({ message }: { message: DisplayedMessage }) {
+  const { mine } = message;
 
   return (
     <li

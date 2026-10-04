@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Task, TaskStatus, UpdateTaskInput } from '@/api/types';
+import type { Task, TaskStatus } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,7 +23,7 @@ import {
 
 interface TaskDialogProps {
   projectId: number;
-  /** The task to edit. Omit to create a new one. */
+  /** The task to edit. Leave out to create a new one. */
   task?: Task;
   /** Column a new task starts in. */
   defaultStatus?: TaskStatus;
@@ -41,8 +41,6 @@ export function TaskDialog({
   const updateTask = useUpdateTask(projectId);
   const deleteTask = useDeleteTask(projectId);
 
-  // The form keeps what the user typed even if the task changes elsewhere
-  // while the dialog is open.
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [status, setStatus] = useState(task?.status ?? defaultStatus);
@@ -53,7 +51,7 @@ export function TaskDialog({
     createTask.isPending || updateTask.isPending || deleteTask.isPending;
 
   const save = () => {
-    const input = {
+    const fields = {
       title: title.trim(),
       description: description.trim() || null,
       status,
@@ -61,17 +59,21 @@ export function TaskDialog({
     };
 
     if (!task) {
-      createTask.mutate(input, { onSuccess: onClose });
+      createTask.mutate(fields, { onSuccess: onClose });
       return;
     }
 
-    const changes: UpdateTaskInput = input;
-    if (status !== task.status) {
-      // Changing the column here puts the task at the bottom of the new one.
-      const last = tasksInColumn(tasks.data ?? [], status).at(-1);
-      changes.position = positionBetween(last?.position, undefined);
-    }
-    updateTask.update(task.id, changes, { onSuccess: onClose });
+    // A task moved to another column through this form goes to the bottom
+    // of that column.
+    const last = tasksInColumn(tasks.data ?? [], status).at(-1);
+    const position =
+      status === task.status
+        ? task.position
+        : positionBetween(last?.position, undefined);
+    updateTask.mutate(
+      { id: task.id, input: { ...fields, position } },
+      { onSuccess: onClose },
+    );
   };
 
   return (
