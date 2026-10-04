@@ -69,12 +69,6 @@ export type UpdateTaskInput = Partial<
   Pick<Task, 'title' | 'description' | 'status' | 'position' | 'assignee'>
 >;
 
-/** A change to a task made by anyone, pushed to every open board. */
-export type TaskEvent =
-  | { type: 'taskCreated'; task: Task }
-  | { type: 'taskUpdated'; task: Task }
-  | { type: 'taskDeleted'; id: number; projectId: number };
-
 export interface ChatMessage {
   projectId: number;
   text: string;
