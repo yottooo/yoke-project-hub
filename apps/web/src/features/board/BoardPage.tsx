@@ -5,12 +5,12 @@ import type { TaskStatus } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { ChatWidget } from '@/features/chat/ChatWidget';
 import { useProject } from '@/features/projects/queries';
-import { useProjectRoom } from '@/realtime/useProjectRoom';
-import { useTaskRealtime } from '@/realtime/useTaskRealtime';
+import { useProjectRoom } from '@/lib/socket';
 import { Board } from './Board';
-import { useTasks, useUpdateTask } from './queries';
+import { useLiveTasks, useTasks, useUpdateTask } from './queries';
 import { TaskDialog } from './TaskDialog';
 
+/** Which dialog is open: a new task, an existing one, or none. */
 type DialogState =
   | { mode: 'create'; status: TaskStatus }
   | { mode: 'edit'; taskId: number }
@@ -34,16 +34,17 @@ function ProjectBoard({ projectId }: { projectId: number }) {
   const updateTask = useUpdateTask(projectId);
   const [dialog, setDialog] = useState<DialogState>(null);
 
-  // Live updates: join the project's room, then keep the task cache in step.
+  // Live updates: join the project's room, and reload the tasks whenever
+  // someone else changes them.
   useProjectRoom(projectId);
-  useTaskRealtime(projectId);
+  useLiveTasks(projectId);
 
   if (project.isError) {
     return <ProjectUnavailable message={project.error.message} />;
   }
 
-  // Read from the live list, so the dialog closes if the task is deleted
-  // elsewhere.
+  // Looked up in the current list, so the dialog closes by itself if the
+  // task is deleted in another tab.
   const editing =
     dialog?.mode === 'edit'
       ? tasks.data?.find((task) => task.id === dialog.taskId)
@@ -89,7 +90,7 @@ function ProjectBoard({ projectId }: { projectId: number }) {
       {tasks.data && (
         <Board
           tasks={tasks.data}
-          onMove={updateTask.update}
+          onMove={(id, input) => updateTask.mutate({ id, input })}
           onTaskClick={(task) => setDialog({ mode: 'edit', taskId: task.id })}
           onAddTask={(status) => setDialog({ mode: 'create', status })}
         />
@@ -122,7 +123,7 @@ export function BoardPage() {
   if (!Number.isInteger(projectId)) {
     return <ProjectUnavailable message="That is not a valid project link." />;
   }
-  // Keyed by project: chat messages and open dialogs belong to one project,
-  // so switching projects starts from a clean state.
+  // The key makes React start this component from scratch for each project,
+  // so chat messages and open dialogs never carry over from another one.
   return <ProjectBoard key={projectId} projectId={projectId} />;
 }
