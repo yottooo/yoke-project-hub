@@ -8,7 +8,6 @@ import type { Task, TaskStatus } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { BoardColumnDef } from './columns';
-import { columnDropId, type DropData } from './drop';
 import { TaskCard } from './TaskCard';
 
 interface BoardColumnProps {
@@ -27,10 +26,7 @@ export function BoardColumn({
 }: BoardColumnProps) {
   // The whole column is a drop target, so a card can be dropped below the
   // last one or into an empty column.
-  const { setNodeRef, isOver } = useDroppable({
-    id: columnDropId(column.status),
-    data: { type: 'column', status: column.status } satisfies DropData,
-  });
+  const { setNodeRef, isOver } = useDroppable({ id: column.status });
 
   return (
     <section
@@ -56,6 +52,7 @@ export function BoardColumn({
         </Button>
       </header>
 
+      {/* Makes the cards of this column reorderable by dragging. */}
       <SortableContext
         items={tasks.map((task) => task.id)}
         strategy={verticalListSortingStrategy}

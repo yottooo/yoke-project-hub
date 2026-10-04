@@ -13,12 +13,12 @@ import {
 import type { Task, TaskStatus, UpdateTaskInput } from '@/api/types';
 import { BoardColumn } from './BoardColumn';
 import { BOARD_COLUMNS } from './columns';
-import { resolveDrop, type DropData, type DropTarget } from './drop';
-import { tasksInColumn } from './position';
+import { resolveDrop, tasksInColumn } from './position';
 import { TaskCardView } from './TaskCard';
 
-// Whatever is under the pointer wins, and a card beats the column around it.
-// Between columns nothing is under the pointer, so fall back to the nearest.
+// Decides what the dragged card is "over". Whatever is under the pointer
+// wins, and a card beats the column around it. Between columns nothing is
+// under the pointer, so fall back to the nearest target.
 const collisionDetection: CollisionDetection = (args) => {
   const underPointer = pointerWithin(args);
   return underPointer.length > 0 ? underPointer : closestCorners(args);
@@ -32,6 +32,7 @@ interface BoardProps {
 }
 
 export function Board({ tasks, onMove, onTaskClick, onAddTask }: BoardProps) {
+  // The card being dragged, if any.
   const [activeId, setActiveId] = useState<number | null>(null);
   const activeTask = tasks.find((task) => task.id === activeId);
 
@@ -43,23 +44,20 @@ export function Board({ tasks, onMove, onTaskClick, onAddTask }: BoardProps) {
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveId(null);
-    const data = over?.data.current as DropData | undefined;
-    console.log('[dnd-debug] end', JSON.stringify({ active: active.id, over: over?.id ?? null, data: data ?? null }));
-    if (!over || !data) return;
+    if (!over) return;
 
-    const target: DropTarget =
-      data.type === 'column'
-        ? { type: 'column', status: data.status }
-        : { type: 'task', status: data.status, taskId: Number(over.id) };
-    const result = resolveDrop(tasks, Number(active.id), target);
-    if (result) onMove(Number(active.id), result);
+    // Ids tell cards and columns apart: a card's id is its task id (a
+    // number), a column's id is its status (a string).
+    const taskId = active.id as number;
+    const result = resolveDrop(tasks, taskId, over.id as number | TaskStatus);
+    if (result) onMove(taskId, result);
   };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetection}
-      onDragStart={({ active }) => setActiveId(Number(active.id))}
+      onDragStart={({ active }) => setActiveId(active.id as number)}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
@@ -74,8 +72,10 @@ export function Board({ tasks, onMove, onTaskClick, onAddTask }: BoardProps) {
           />
         ))}
       </div>
-      {/* No drop animation: it would glide back to where the drag started,
-          while the card itself is already in its new place. */}
+
+      {/* The copy of the card that follows the pointer. No drop animation:
+          it would glide back to where the drag started, while the card
+          itself is already in its new place. */}
       <DragOverlay dropAnimation={null}>
         {activeTask && (
           <TaskCardView
