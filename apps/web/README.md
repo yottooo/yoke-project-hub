@@ -1,6 +1,6 @@
-# Project Hub web
+# Yoke web
 
-React front end for the Project Hub API: login, project list, a Jira-style task board with drag and drop, and a project chat.
+React front end for the Yoke API: login, project list, a Jira-style task board with drag and drop, and a project chat.
 
 Vite + React + TypeScript, TanStack Query, React Router, socket.io-client, Tailwind + shadcn/ui, dnd-kit.
 
@@ -40,7 +40,7 @@ So the API needs no CORS setup in development.
 | Login            | mock, until the API has an auth module                        |
 | Tasks, the board | mock, until the API has a tasks module                        |
 
-The mocks live in `src/api/mocks/` and keep their data in the browser's localStorage. Each is switched by a flag in `.env.development`:
+The mocks live in `src/api/mocks.ts` and keep their data in the browser's localStorage. Each is switched by a flag in `.env.development`:
 
 ```env
 VITE_MOCK_AUTH=true
@@ -51,19 +51,19 @@ Set a flag to `false` once the matching Nest module exists. Nothing else changes
 
 ## Live updates
 
-The board renders from the TanStack Query cache, and everything that changes a task writes to that cache:
+One rule keeps the board current: whenever tasks change, the task list is reloaded from the API. It is all in `src/features/board/queries.ts`.
 
-- your own change: written optimistically, then sent to the API
-- someone else's change: arrives as an event and is applied by `src/realtime/applyTaskEvent.ts`
+- your own change: the list is reloaded when the request finishes. A drag is also shown right away, before the API answers (an optimistic update), so the card does not jump back.
+- someone else's change: the app is told which project changed and reloads that project's list (`useLiveTasks`).
 
-Where the events come from follows the tasks flag (`src/realtime/taskEvents.ts`):
+Who does the telling follows the tasks flag, through `tasksApi.subscribe` in `src/api/tasks.ts`:
 
 - real API: socket events in the project's room
 - mock: a `BroadcastChannel`, which reaches every tab of the same browser
 
 So with the mock, a board open in two tabs already stays in sync. Across browsers and users it needs the API to emit the events below.
 
-One socket serves the whole app (`src/realtime/socket.ts`), opened after login. Chat and board share it and the room `project-{id}`.
+One socket serves the whole app (`src/lib/socket.ts`), opened after login. Chat and board share it and the room `project-{id}`.
 
 ## API contract for the missing modules
 
@@ -101,7 +101,6 @@ Task = {
 ```
 
 - `position` is any number. When a card is dropped, the front end sends a value between its new neighbours, so the API only has to save it. A new task should get a position after the last one in its column.
-- `updatedAt` is used to ignore events that arrive out of order.
 
 ### Socket events
 
@@ -112,6 +111,8 @@ taskCreated   Task
 taskUpdated   Task
 taskDeleted   { id, projectId }
 ```
+
+The front end only reads `projectId` from these and reloads that project's tasks.
 
 Emitted to everyone, for the project list (the planned FeedGateway):
 
@@ -131,15 +132,18 @@ leaveProject   { projectId }
 
 ```
 src/
-  api/          fetch client, types, one file per resource, mocks/
-  realtime/     the socket, room membership, task and project event handling
+  main.tsx, router.tsx   entry point and the routes
+  api/          fetch client, types, one file per resource, mocks.ts
+  lib/          the socket, the query client
   features/
     auth/       login page, route guard, session hook
     projects/   project list and the new-project dialog
-    board/      board, columns, cards, task dialog, drop logic
+    board/      board, columns, cards, task dialog, card positions
     chat/       chat popup
   layouts/      the signed-in shell (top bar)
   components/ui/  shadcn/ui components, generated
 ```
+
+In each feature, `queries.ts` holds everything that loads or changes data; the other files are what is on screen.
 
 To add a board column, add the status to `TaskStatus` in `src/api/types.ts` and an entry to `BOARD_COLUMNS` in `src/features/board/columns.ts`.
