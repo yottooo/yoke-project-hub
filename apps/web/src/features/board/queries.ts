@@ -1,90 +1,82 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tasksApi } from '@/api/tasks';
 import type { CreateTaskInput, Task, UpdateTaskInput } from '@/api/types';
-import { applyTaskEvent } from '@/realtime/applyTaskEvent';
-import { taskKeys } from './keys';
+import { socket } from '@/lib/socket';
+
+// One rule keeps the board correct: whenever tasks change, by us or by
+// someone else, the list is reloaded from the API. The only shortcut is in
+// useUpdateTask, which shows our own change before the API confirms it.
+
+const tasksKey = (projectId: number) => ['tasks', projectId] as const;
 
 export function useTasks(projectId: number) {
   return useQuery({
-    queryKey: taskKeys.list(projectId),
+    queryKey: tasksKey(projectId),
     queryFn: () => tasksApi.list(projectId),
   });
 }
 
-/**
- * Reloads the list once the last in-flight task mutation has finished, so the
- * cache ends on what the server has, whatever happened in between.
- */
-function useRefetchWhenIdle(projectId: number) {
+/** Reloads the task list when someone else changes a task of this project. */
+export function useLiveTasks(projectId: number): void {
   const queryClient = useQueryClient();
-  return () => {
-    // The mutation calling this from onSettled still counts as in flight.
-    const mutating = queryClient.isMutating({
-      mutationKey: taskKeys.mutation(projectId),
+
+  useEffect(() => {
+    const reload = () => {
+      void queryClient.invalidateQueries({ queryKey: tasksKey(projectId) });
+    };
+
+    const unsubscribe = tasksApi.subscribe((changedProjectId) => {
+      if (changedProjectId === projectId) reload();
     });
-    if (mutating === 1) {
-      void queryClient.invalidateQueries({
-        queryKey: taskKeys.list(projectId),
-      });
-    }
-  };
+    // Changes made while the socket was down were missed, so reload once it
+    // is back.
+    socket.io.on('reconnect', reload);
+
+    return () => {
+      unsubscribe();
+      socket.io.off('reconnect', reload);
+    };
+  }, [projectId, queryClient]);
 }
 
 export function useCreateTask(projectId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: taskKeys.mutation(projectId),
     mutationFn: (input: CreateTaskInput) => tasksApi.create(projectId, input),
-    onSuccess: (task) => {
-      applyTaskEvent(queryClient, { type: 'taskCreated', task });
-    },
-    onSettled: useRefetchWhenIdle(projectId),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: tasksKey(projectId) }),
   });
 }
 
 export function useDeleteTask(projectId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: taskKeys.mutation(projectId),
     mutationFn: (id: number) => tasksApi.remove(id),
-    onSuccess: (task) => {
-      applyTaskEvent(queryClient, {
-        type: 'taskDeleted',
-        id: task.id,
-        projectId,
-      });
-    },
-    onSettled: useRefetchWhenIdle(projectId),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: tasksKey(projectId) }),
   });
 }
 
 export function useUpdateTask(projectId: number) {
   const queryClient = useQueryClient();
-  const queryKey = taskKeys.list(projectId);
+  const queryKey = tasksKey(projectId);
 
-  const mutation = useMutation({
-    mutationKey: taskKeys.mutation(projectId),
+  return useMutation({
     mutationFn: ({ id, input }: { id: number; input: UpdateTaskInput }) =>
       tasksApi.update(id, input),
-    // Responses are not written to the cache: with several updates in flight,
-    // an earlier response would briefly undo a later optimistic one. The
-    // refetch settles the list, and is also what rolls back after an error.
-    onSettled: useRefetchWhenIdle(projectId),
+    // Optimistic update: put the change into the cached list right away, so
+    // a dragged card stays where it was dropped instead of jumping back until
+    // the API answers.
+    onMutate: async ({ id, input }) => {
+      // A reload that is still on its way would overwrite the change.
+      await queryClient.cancelQueries({ queryKey });
+      queryClient.setQueryData<Task[]>(queryKey, (tasks) =>
+        tasks?.map((task) => (task.id === id ? { ...task, ...input } : task)),
+      );
+    },
+    // Runs after success and after an error. After an error, this reload is
+    // what puts the card back.
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
-
-  const update = (
-    id: number,
-    input: UpdateTaskInput,
-    options?: { onSuccess?: () => void },
-  ) => {
-    // Optimistic write. Done here rather than in onMutate, which runs a tick
-    // later: a dropped card has to be in its new place before the next paint.
-    void queryClient.cancelQueries({ queryKey });
-    queryClient.setQueryData<Task[]>(queryKey, (tasks) =>
-      tasks?.map((task) => (task.id === id ? { ...task, ...input } : task)),
-    );
-    mutation.mutate({ id, input }, options);
-  };
-
-  return { update, error: mutation.error, isPending: mutation.isPending };
 }
