@@ -2,6 +2,8 @@
   "name": "web",
   "private": true,
   "version": "0.0.0",
+  "author": "yottooo (https://github.com/yottooo)",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
