@@ -1,5 +1,5 @@
 import { api } from './client';
-import { mockAuthApi } from './mocks/auth.mock';
+import { mockAuthApi } from './mocks';
 import type { AuthSession, LoginInput } from './types';
 
 export interface AuthApi {

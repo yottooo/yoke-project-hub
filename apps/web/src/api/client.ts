@@ -43,6 +43,5 @@ export async function api<T>(
   // The token is no longer accepted: drop it, which sends the user to /login.
   if (res.status === 401) setSession(null);
   if (!res.ok) throw new ApiError(res.status, await readErrorMessage(res));
-  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
