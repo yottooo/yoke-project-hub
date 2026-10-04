@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,9 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { logout, useAuth } from '@/features/auth/useAuth';
+import { socket, useSocketConnected } from '@/lib/socket';
 import { cn } from '@/lib/utils';
-import { RealtimeProvider } from '@/realtime/RealtimeProvider';
-import { useSocketConnected } from '@/realtime/useSocketConnected';
 
 function ConnectionStatus() {
   const connected = useSocketConnected();
@@ -28,37 +28,43 @@ function ConnectionStatus() {
   );
 }
 
-/** Shell of every signed-in page: top bar, and the socket kept open below it. */
+/** Shell of every signed-in page: the top bar, with the page below it. */
 export function AppLayout() {
   const { user } = useAuth();
 
+  // The socket stays open for as long as a signed-in page is shown.
+  useEffect(() => {
+    socket.connect();
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   return (
-    <RealtimeProvider>
-      <div className="flex h-svh flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
-          <Link to="/projects" className="font-semibold">
-            Project Hub
-          </Link>
-          <div className="flex items-center gap-4">
-            <ConnectionStatus />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  {user?.name}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={logout}>Log out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <Outlet />
-        </main>
-      </div>
-    </RealtimeProvider>
+    <div className="flex h-svh flex-col">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
+        <Link to="/projects" className="font-semibold">
+          Yoke
+        </Link>
+        <div className="flex items-center gap-4">
+          <ConnectionStatus />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                {user?.name}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={logout}>Log out</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <Outlet />
+      </main>
+    </div>
   );
 }
