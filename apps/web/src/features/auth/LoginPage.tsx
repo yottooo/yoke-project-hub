@@ -32,7 +32,7 @@ export function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Project Hub</CardTitle>
+          <CardTitle>Yoke</CardTitle>
           <CardDescription>Sign in to see your projects.</CardDescription>
         </CardHeader>
         <CardContent>
