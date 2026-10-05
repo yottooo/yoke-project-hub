@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { ChatMessage } from '@/api/types';
-import { socket } from '@/realtime/socket';
+import { socket } from '@/lib/socket';
+
+/** A received message, plus whether this tab sent it. */
+export type DisplayedMessage = ChatMessage & { mine: boolean };
 
 /**
  * A project's chat over the shared socket. The page must already be in the
@@ -8,13 +11,16 @@ import { socket } from '@/realtime/socket';
  * does not store them, so they are gone after a reload.
  */
 export function useProjectChat(projectId: number) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<DisplayedMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const onMessage = (message: ChatMessage) => {
       if (message.projectId !== projectId) return;
-      setMessages((previous) => [...previous, message]);
+      // Decided on arrival: the socket id changes after a reconnect, but the
+      // message keeps its answer.
+      const mine = message.senderId === socket.id;
+      setMessages((previous) => [...previous, { ...message, mine }]);
     };
     const onError = ({ message }: { message: string }) => setError(message);
     const onJoined = () => setError(null);
