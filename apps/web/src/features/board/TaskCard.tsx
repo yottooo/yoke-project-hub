@@ -1,9 +1,8 @@
 import type { ComponentProps } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Task } from '@/api/types';
+import type { Task, TaskStatus } from '@/api/types';
 import { cn } from '@/lib/utils';
-import type { DropData } from './drop';
 
 /** The card's looks only. Also what follows the pointer during a drag. */
 export function TaskCardView({
@@ -49,14 +48,11 @@ export function TaskCard({
     isDragging,
     isOver,
     active,
-  } = useSortable({
-    id: task.id,
-    data: { type: 'task', status: task.status } satisfies DropData,
-  });
+  } = useSortable({ id: task.id, data: { status: task.status } });
 
   // Cards of the same column shift to preview a reorder. A card arriving from
   // another column gets no such preview, so mark where it would land.
-  const draggedFrom = (active?.data.current as DropData | undefined)?.status;
+  const draggedFrom: TaskStatus | undefined = active?.data.current?.status;
   const showInsertLine =
     isOver && active?.id !== task.id && draggedFrom !== task.status;
 
