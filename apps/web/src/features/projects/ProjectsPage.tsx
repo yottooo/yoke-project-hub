@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useProjectsRealtime } from '@/realtime/useProjectsRealtime';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { ProjectCard } from './ProjectCard';
-import { useProjects } from './queries';
+import { useLiveProjects, useProjects } from './queries';
 
 export function ProjectsPage() {
   const projects = useProjects();
-  useProjectsRealtime();
+  useLiveProjects();
   const [creating, setCreating] = useState(false);
 
   return (
