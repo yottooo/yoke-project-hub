@@ -8,6 +8,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     ChatModule,
     RedisModule,
     EventEmitterModule.forRoot(),
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
