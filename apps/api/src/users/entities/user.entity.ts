@@ -1,41 +1,19 @@
-import { Exclude } from 'class-transformer';
-import {
-  IsDate,
-  IsEmail,
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  Length,
-} from 'class-validator';
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity()
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  @IsNumber()
-  @IsNotEmpty()
   id: number;
 
-  @Column()
-  @IsString()
-  @Length(3, 60)
+  @Column({ length: 60, nullable: true })
   name?: string;
 
-  @Column()
-  @IsEmail()
-  @IsNotEmpty()
-  @Length(3, 200)
-  @Unique(['email'])
-  @Exclude({ toPlainOnly: true })
+  @Column({ unique: true })
   email: string;
 
   @Column({ select: false })
-  @IsString()
-  @IsNotEmpty()
   passwordHash: string;
 
   @CreateDateColumn()
-  @IsDate()
-  @IsNotEmpty()
-  createdAt: Date | Date;
+  createdAt: Date;
 }
