@@ -24,7 +24,7 @@ import { UsersModule } from './users/users.module';
       database: process.env.DB_NAME,
       entities: [Health],
       autoLoadEntities: true, 
-      synchronize: true,
+      synchronize: false,
     }),
     TypeOrmModule.forFeature([Health]),
     ProjectsModule,
