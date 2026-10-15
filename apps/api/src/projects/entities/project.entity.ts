@@ -11,16 +11,16 @@ export class Project {
   @Column({ nullable: true })
   description?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
    createdAt: Date | string;
   
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
    updatedAt: Date | string;
    
-  @Column()
+  @Column({ type: 'timestamptz' })
   startDate: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   endDate: Date;
 
   @Column({default: 'active'})
