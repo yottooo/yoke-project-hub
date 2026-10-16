@@ -9,6 +9,7 @@ import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { UsersModule } from './users/users.module';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       entities: [Health],
-      autoLoadEntities: true, 
+      autoLoadEntities: true,
       synchronize: false,
     }),
     TypeOrmModule.forFeature([Health]),
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     RedisModule,
     EventEmitterModule.forRoot(),
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
