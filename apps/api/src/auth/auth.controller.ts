@@ -1,5 +1,16 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { AuthGuard } from './auth.guard';
+import type { AuthenticatedRequest } from './jwt-payload.interface';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -17,5 +28,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  // Guard on this method only: register and login above must stay public
+  @Get('me')
+  @UseGuards(AuthGuard)
+  me(@Req() request: AuthenticatedRequest) {
+    return request.user;
   }
 }
