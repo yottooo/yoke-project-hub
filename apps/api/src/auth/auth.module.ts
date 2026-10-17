@@ -8,7 +8,6 @@ import { AuthController } from './auth.controller';
 @Module({
   imports: [
     UsersModule,
-    // registerAsync so the secret is read through ConfigService after .env is loaded
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
