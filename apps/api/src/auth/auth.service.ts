@@ -33,7 +33,7 @@ export class AuthService {
     });
   }
 
-  async login(dto: LoginDto): Promise<{ accessToken: string }> {
+  async login(dto: LoginDto): Promise<{ accessToken: string; user: SafeUser }> {
     const user = await this.users.findByEmailWithPassword(dto.email);
 
     // Same error for unknown email and wrong password, so nobody can probe which emails exist
@@ -42,6 +42,16 @@ export class AuthService {
     }
 
     const payload: JwtPayload = { sub: user.id, email: user.email };
-    return { accessToken: await this.jwt.signAsync(payload) };
+    // The web app shows the user right away, so send it along with the token.
+    // Listed field by field so the hash we just loaded never leaves the service.
+    return {
+      accessToken: await this.jwt.signAsync(payload),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        createdAt: user.createdAt,
+      },
+    };
   }
 }
