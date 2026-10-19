@@ -37,13 +37,13 @@ So the API needs no CORS setup in development.
 | ---------------- | ------------------------------------------------------------- |
 | Projects         | the real API (`/projects`)                                    |
 | Chat             | the real gateway (`joinProject`, `sendMessage`, `newMessage`) |
-| Login            | mock, until the API has an auth module                        |
+| Login, sign-up   | the real API (`/auth/login`, `/auth/register`)                |
 | Tasks, the board | mock, until the API has a tasks module                        |
 
 The mocks live in `src/api/mocks.ts` and keep their data in the browser's localStorage. Each is switched by a flag in `.env.development`:
 
 ```env
-VITE_MOCK_AUTH=true
+VITE_MOCK_AUTH=false
 VITE_MOCK_TASKS=true
 ```
 
@@ -72,9 +72,10 @@ This is what the front end calls. The types are in `src/api/types.ts`.
 ### Auth
 
 ```
-POST /auth/login   { email, password }   ->  { accessToken, user }
+POST /auth/register { email, password, name? } ->  user
+POST /auth/login    { email, password }        ->  { accessToken, user }
 
-user = { id: number, email: string, name: string }
+user = { id: number, email: string, name: string | null }
 ```
 
 Every request then carries `Authorization: Bearer <accessToken>`. A `401` from any endpoint signs the user out. The socket sends the same token as `auth.token` in the handshake.
