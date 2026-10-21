@@ -80,14 +80,14 @@ export class ProjectsService {
     return updated;
   }
 
-  async remove(id: number) {
-    const project = await this.repo.findOne({ where: { id } });
-    if (!project) {
+  async remove(id: number): Promise<void> {
+    const result = await this.repo.delete(id);
+
+    if (result.affected === 0) {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
-    await this.repo.delete(id);
+    
     await this.redis.del(this.ALL_KEY, `projects:${id}`);
     this.events.emit('project.removed', { id });
-    return project;
   }
 }
