@@ -6,6 +6,11 @@ Yoke keeps a team's projects, task board and chat in one place. The repo holds t
 - `apps/web` – React + Vite web app with the project list and a drag-and-drop task board. Login and tasks run on mocks until the API has them.
 
 PostgreSQL and Redis run in Docker Compose; the apps run with Node on your machine.
+## Design
+# Projects Page
+<img width="1940" height="1512" alt="image" src="https://github.com/user-attachments/assets/00e3b467-4c68-4fbf-be0a-6064e17b0b45" />
+# Tasks
+<img width="1966" height="1928" alt="image" src="https://github.com/user-attachments/assets/7360b8f1-3c0a-4ba8-a7b1-923c5ca21476" />
 
 ## Prerequisites
 
