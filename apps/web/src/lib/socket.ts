@@ -22,12 +22,7 @@ interface ClientToServerEvents {
   sendMessage: (payload: { projectId: number; text: string }) => void;
 }
 
-/**
- * The one socket of the app, shared by the chat and the live updates.
- * No URL: it connects to the page's own address, and Vite forwards
- * /socket.io to the API. AppLayout opens it after login and closes it on
- * logout.
- */
+/** The app's one shared socket, proxied by Vite and opened by AppLayout while signed in. */
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
   autoConnect: false,
   // The API ignores the token today; it is here for when the gateway checks it.
@@ -56,14 +51,12 @@ export function useProjectRoom(projectId: number): void {
     };
 
     if (socket.connected) join();
-    // Runs on every connect, including reconnects: the server forgets the
-    // rooms of a socket that dropped.
+    // Rejoin on every connect, since the server forgets a dropped socket's rooms.
     socket.on('connect', join);
 
     return () => {
       socket.off('connect', join);
-      // The API has no leaveProject handler yet and ignores this. Until it
-      // has one, listeners check the projectId of what they receive.
+      // Ignored until the API handles leaveProject, so listeners still check the projectId.
       if (socket.connected) socket.emit('leaveProject', { projectId });
     };
   }, [projectId]);

@@ -13,8 +13,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // The API has no global prefix and both apps own a /projects path, so
-      // the browser calls /api/* and the prefix is stripped before forwarding.
+      // Both apps own /projects, so the browser calls /api/* and the prefix is stripped here.
       '/api': {
         target: API_TARGET,
         changeOrigin: true,
