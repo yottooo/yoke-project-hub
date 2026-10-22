@@ -51,7 +51,7 @@ export function AppLayout() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm">
-                {user?.name}
+                {user?.name ?? user?.email}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

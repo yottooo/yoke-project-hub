@@ -24,6 +24,10 @@ export const mockAuthApi: AuthApi = {
       user: { id: 1, email, name: email.split('@')[0] },
     };
   },
+  async register({ email, name }) {
+    await delay();
+    return { id: 1, email, name: name ?? null };
+  },
 };
 
 const STORAGE_KEY = 'project-hub.mock.tasks';
