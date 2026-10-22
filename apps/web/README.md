@@ -38,13 +38,13 @@ So the API needs no CORS setup in development.
 | Projects         | the real API (`/projects`)                                    |
 | Chat             | the real gateway (`joinProject`, `sendMessage`, `newMessage`) |
 | Login, sign-up   | the real API (`/auth/login`, `/auth/register`)                |
-| Tasks, the board | mock, until the API has a tasks module                        |
+| Tasks, the board | the real API (`/projects/:id/tasks`, `/tasks/:id`)            |
 
 The mocks live in `src/api/mocks.ts` and keep their data in the browser's localStorage. Each is switched by a flag in `.env.development`:
 
 ```env
 VITE_MOCK_AUTH=false
-VITE_MOCK_TASKS=true
+VITE_MOCK_TASKS=false
 ```
 
 Set a flag to `false` once the matching Nest module exists. Nothing else changes: `src/api/auth.ts` and `src/api/tasks.ts` pick the mock or the real implementation behind the same interface. Restart `npm run dev` after editing the file.
@@ -61,11 +61,11 @@ Who does the telling follows the tasks flag, through `tasksApi.subscribe` in `sr
 - real API: socket events in the project's room
 - mock: a `BroadcastChannel`, which reaches every tab of the same browser
 
-So with the mock, a board open in two tabs already stays in sync. Across browsers and users it needs the API to emit the events below.
+With the real API, a board stays in sync across tabs, browsers and users. With the mock, only across tabs of the same browser.
 
 One socket serves the whole app (`src/lib/socket.ts`), opened after login. Chat and board share it and the room `project-{id}`.
 
-## API contract for the missing modules
+## API contract
 
 This is what the front end calls. The types are in `src/api/types.ts`.
 
