@@ -1,6 +1,4 @@
-// In-browser stand-ins for the API modules that do not exist yet: login and
-// tasks. Data lives in localStorage. This file can be deleted once
-// VITE_MOCK_AUTH and VITE_MOCK_TASKS are both false.
+// localStorage-backed stand-ins for login and tasks; delete once both VITE_MOCK_* flags are off.
 
 import type { AuthApi } from './auth';
 import { ApiError } from './client';
@@ -33,8 +31,7 @@ export const mockAuthApi: AuthApi = {
 const STORAGE_KEY = 'project-hub.mock.tasks';
 const POSITION_STEP = 1000;
 
-// Stands in for the socket: tells the other tabs of this browser which
-// project's tasks changed. A tab does not receive its own messages.
+// Stands in for the socket: tells this browser's other tabs which project's tasks changed.
 const channel = new BroadcastChannel('project-hub.mock.task-events');
 
 // Read on every call, because another tab may have written since the last one.
