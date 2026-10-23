@@ -42,8 +42,7 @@ export class AuthService {
     }
 
     const payload: JwtPayload = { sub: user.id, email: user.email };
-    // The web app shows the user right away, so send it along with the token.
-    // Listed field by field so the hash we just loaded never leaves the service.
+    // Send the user with the token, field by field so the password hash never leaves.
     return {
       accessToken: await this.jwt.signAsync(payload),
       user: {

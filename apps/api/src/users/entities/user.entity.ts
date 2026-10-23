@@ -14,6 +14,6 @@ export class User {
   @Column({ select: false })
   passwordHash: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }
