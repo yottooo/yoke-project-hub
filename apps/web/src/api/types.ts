@@ -1,6 +1,4 @@
-// Shapes shared with the Nest API. Project mirrors the existing entity; the
-// auth and task types are the contract for modules the API does not have yet
-// (see apps/web/README.md).
+// Shapes shared with the Nest API (see apps/web/README.md for the contract).
 
 export type ProjectStatus = 'active' | 'inactive' | 'completed';
 
@@ -30,7 +28,8 @@ export interface CreateProjectInput {
 export interface User {
   id: number;
   email: string;
-  name: string;
+  /** Optional at sign-up, so it can be missing. */
+  name: string | null;
 }
 
 export interface AuthSession {
@@ -41,6 +40,10 @@ export interface AuthSession {
 export interface LoginInput {
   email: string;
   password: string;
+}
+
+export interface RegisterInput extends LoginInput {
+  name?: string;
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done';

@@ -8,10 +8,7 @@ export interface TasksApi {
   create(projectId: number, input: CreateTaskInput): Promise<Task>;
   update(id: number, input: UpdateTaskInput): Promise<Task>;
   remove(id: number): Promise<Task>;
-  /**
-   * Calls `onChange` with a project's id whenever someone else changes one
-   * of its tasks. Returns a function that stops listening.
-   */
+  /** Calls `onChange` when someone else changes a project's tasks; returns an unsubscribe. */
   subscribe(onChange: (projectId: number) => void): () => void;
 }
 
