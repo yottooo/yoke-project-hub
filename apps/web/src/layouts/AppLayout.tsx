@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet } from 'react-router';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +32,7 @@ function ConnectionStatus() {
 /** Shell of every signed-in page: the top bar, with the page below it. */
 export function AppLayout() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // The socket stays open for as long as a signed-in page is shown.
   useEffect(() => {
@@ -39,6 +41,18 @@ export function AppLayout() {
       socket.disconnect();
     };
   }, []);
+
+  // Once the API is reachable, refetch whatever failed or was missed while offline.
+  useEffect(() => {
+    const reload = () => {
+      void queryClient.invalidateQueries();
+    };
+
+    socket.on('connect', reload);
+    return () => {
+      socket.off('connect', reload);
+    };
+  }, [queryClient]);
 
   return (
     <div className="flex h-svh flex-col">
