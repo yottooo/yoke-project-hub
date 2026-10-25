@@ -50,8 +50,7 @@ export function TaskCard({
     active,
   } = useSortable({ id: task.id, data: { status: task.status } });
 
-  // Cards of the same column shift to preview a reorder. A card arriving from
-  // another column gets no such preview, so mark where it would land.
+  // Same-column cards shift to preview a reorder; a card from another column needs a marker.
   const draggedFrom: TaskStatus | undefined = active?.data.current?.status;
   const showInsertLine =
     isOver && active?.id !== task.id && draggedFrom !== task.status;

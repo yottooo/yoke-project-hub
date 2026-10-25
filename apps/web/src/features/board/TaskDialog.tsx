@@ -63,8 +63,7 @@ export function TaskDialog({
       return;
     }
 
-    // A task moved to another column through this form goes to the bottom
-    // of that column.
+    // A task moved to another column through this form lands at its bottom.
     const last = tasksInColumn(tasks.data ?? [], status).at(-1);
     const position =
       status === task.status
