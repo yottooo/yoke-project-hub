@@ -37,7 +37,7 @@ export function CreateProjectDialog({ onClose }: { onClose: () => void }) {
                 name: name.trim(),
                 description: description.trim(),
                 startDate: new Date().toISOString(),
-                owner: user?.name ?? 'unknown',
+                owner: user?.name ?? user?.email ?? 'unknown',
                 team: [],
               },
               { onSuccess: onClose },

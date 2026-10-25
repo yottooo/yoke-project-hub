@@ -127,8 +127,7 @@ export function ChatWidget({ projectId }: { projectId: number }) {
         <Input
           aria-label="Message"
           placeholder={connected ? 'Write a message…' : 'Reconnecting…'}
-          // Sending while offline would reach the server before the room is
-          // rejoined, and the sender would never see the message come back.
+          // Offline sends would beat the room rejoin, and the sender would never see them come back.
           disabled={!connected}
           autoFocus
           value={draft}
