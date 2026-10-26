@@ -2,11 +2,8 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tasksApi } from '@/api/tasks';
 import type { CreateTaskInput, Task, UpdateTaskInput } from '@/api/types';
-import { socket } from '@/lib/socket';
 
-// One rule keeps the board correct: whenever tasks change, by us or by
-// someone else, the list is reloaded from the API. The only shortcut is in
-// useUpdateTask, which shows our own change before the API confirms it.
+// Any task change reloads the list from the API; useUpdateTask's optimistic update is the only shortcut.
 
 const tasksKey = (projectId: number) => ['tasks', projectId] as const;
 
@@ -21,23 +18,16 @@ export function useTasks(projectId: number) {
 export function useLiveTasks(projectId: number): void {
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const reload = () => {
-      void queryClient.invalidateQueries({ queryKey: tasksKey(projectId) });
-    };
-
-    const unsubscribe = tasksApi.subscribe((changedProjectId) => {
-      if (changedProjectId === projectId) reload();
-    });
-    // Changes made while the socket was down were missed, so reload once it
-    // is back.
-    socket.io.on('reconnect', reload);
-
-    return () => {
-      unsubscribe();
-      socket.io.off('reconnect', reload);
-    };
-  }, [projectId, queryClient]);
+  // Reconnects are covered by AppLayout, which reloads every query on connect.
+  useEffect(
+    () =>
+      tasksApi.subscribe((changedProjectId) => {
+        if (changedProjectId === projectId) {
+          void queryClient.invalidateQueries({ queryKey: tasksKey(projectId) });
+        }
+      }),
+    [projectId, queryClient],
+  );
 }
 
 export function useCreateTask(projectId: number) {
@@ -65,9 +55,7 @@ export function useUpdateTask(projectId: number) {
   return useMutation({
     mutationFn: ({ id, input }: { id: number; input: UpdateTaskInput }) =>
       tasksApi.update(id, input),
-    // Optimistic update: put the change into the cached list right away, so
-    // a dragged card stays where it was dropped instead of jumping back until
-    // the API answers.
+    // Optimistic update: a dropped card stays put instead of jumping back until the API answers.
     onMutate: async ({ id, input }) => {
       // A reload that is still on its way would overwrite the change.
       await queryClient.cancelQueries({ queryKey });
@@ -75,8 +63,7 @@ export function useUpdateTask(projectId: number) {
         tasks?.map((task) => (task.id === id ? { ...task, ...input } : task)),
       );
     },
-    // Runs after success and after an error. After an error, this reload is
-    // what puts the card back.
+    // Runs after success or error; after an error, this reload puts the card back.
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
 }

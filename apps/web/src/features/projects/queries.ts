@@ -4,8 +4,7 @@ import { projectsApi } from '@/api/projects';
 import type { CreateProjectInput } from '@/api/types';
 import { socket } from '@/lib/socket';
 
-// The list is cached under ['projects'] and one project under
-// ['projects', id]. Invalidating ['projects'] reloads both kinds.
+// ['projects'] holds the list and ['projects', id] one project; invalidating ['projects'] reloads both.
 const PROJECTS_KEY = ['projects'] as const;
 
 export function useProjects() {
@@ -29,11 +28,14 @@ export function useCreateProject() {
   });
 }
 
-/**
- * Reloads the projects when the API announces that one changed. The API does
- * not send these events yet (docs/backend-next-steps.md, step 4), so until
- * then this does nothing.
- */
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => projectsApi.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PROJECTS_KEY }),
+  });
+}
+/** Reloads projects on change events; a no-op until the API sends them (docs/backend-next-steps.md, step 4). */
 export function useLiveProjects(): void {
   const queryClient = useQueryClient();
 
