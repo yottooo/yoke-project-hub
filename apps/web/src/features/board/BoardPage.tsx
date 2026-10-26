@@ -34,8 +34,7 @@ function ProjectBoard({ projectId }: { projectId: number }) {
   const updateTask = useUpdateTask(projectId);
   const [dialog, setDialog] = useState<DialogState>(null);
 
-  // Live updates: join the project's room, and reload the tasks whenever
-  // someone else changes them.
+  // Join the project's room and reload tasks whenever someone else changes them.
   useProjectRoom(projectId);
   useLiveTasks(projectId);
 
@@ -43,8 +42,7 @@ function ProjectBoard({ projectId }: { projectId: number }) {
     return <ProjectUnavailable message={project.error.message} />;
   }
 
-  // Looked up in the current list, so the dialog closes by itself if the
-  // task is deleted in another tab.
+  // Read from the live list, so the dialog closes itself if another tab deletes the task.
   const editing =
     dialog?.mode === 'edit'
       ? tasks.data?.find((task) => task.id === dialog.taskId)
@@ -123,7 +121,6 @@ export function BoardPage() {
   if (!Number.isInteger(projectId)) {
     return <ProjectUnavailable message="That is not a valid project link." />;
   }
-  // The key makes React start this component from scratch for each project,
-  // so chat messages and open dialogs never carry over from another one.
+  // Keyed by project, so chat and open dialogs never carry over between projects.
   return <ProjectBoard key={projectId} projectId={projectId} />;
 }

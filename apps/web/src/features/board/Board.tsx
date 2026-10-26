@@ -16,9 +16,7 @@ import { BOARD_COLUMNS } from './columns';
 import { resolveDrop, tasksInColumn } from './position';
 import { TaskCardView } from './TaskCard';
 
-// Decides what the dragged card is "over". Whatever is under the pointer
-// wins, and a card beats the column around it. Between columns nothing is
-// under the pointer, so fall back to the nearest target.
+// What's under the pointer wins (cards over columns); between columns, the nearest target.
 const collisionDetection: CollisionDetection = (args) => {
   const underPointer = pointerWithin(args);
   return underPointer.length > 0 ? underPointer : closestCorners(args);
@@ -36,8 +34,7 @@ export function Board({ tasks, onMove, onTaskClick, onAddTask }: BoardProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const activeTask = tasks.find((task) => task.id === activeId);
 
-  // A drag starts only after the pointer moves a little, so a plain click
-  // still opens the task.
+  // Require a small move before dragging, so a plain click still opens the task.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
@@ -46,8 +43,7 @@ export function Board({ tasks, onMove, onTaskClick, onAddTask }: BoardProps) {
     setActiveId(null);
     if (!over) return;
 
-    // Ids tell cards and columns apart: a card's id is its task id (a
-    // number), a column's id is its status (a string).
+    // Card ids are task ids (numbers), column ids are statuses (strings).
     const taskId = active.id as number;
     const result = resolveDrop(tasks, taskId, over.id as number | TaskStatus);
     if (result) onMove(taskId, result);

@@ -24,8 +24,7 @@ export function BoardColumn({
   onTaskClick,
   onAddTask,
 }: BoardColumnProps) {
-  // The whole column is a drop target, so a card can be dropped below the
-  // last one or into an empty column.
+  // The whole column is droppable, so cards can land below the last one or in an empty column.
   const { setNodeRef, isOver } = useDroppable({ id: column.status });
 
   return (
