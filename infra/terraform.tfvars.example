@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Keep these in sync with the root .env.
+db_username      = "postgres"
+db_password      = "postgres"
+db_name          = "project_hub"
+db_port          = 5432
+redis_port       = 6379
+pgadmin_email    = "admin@admin.com"
+pgadmin_password = "admin"
+
+# macOS/Linux:
+# docker_host = "unix:///var/run/docker.sock"
