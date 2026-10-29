@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ChatGateway } from './chat.gateway';
-import { ProjectsModule } from 'src/projects/projects.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   providers: [ChatGateway],
