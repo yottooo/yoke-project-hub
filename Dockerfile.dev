@@ -1,0 +1,14 @@
+# Development image shared by the api and web services in docker-compose.yml.
+# Only dependencies are baked in; the source is bind-mounted at runtime so
+# edits on the host hot-reload inside the container.
+FROM node:24-slim
+
+WORKDIR /app
+
+# Copy just the manifests so `npm ci` is cached until dependencies change.
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+
+# Installs Linux builds of the native packages (bcrypt, rolldown, tailwind oxide).
+RUN npm ci
