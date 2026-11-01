@@ -5,7 +5,7 @@ Yoke keeps a team's projects, task board and chat in one place. The repo holds t
 - `apps/api` – NestJS (Express) + TypeORM API backed by PostgreSQL, with Redis caching and a Socket.IO chat room for each project.
 - `apps/web` – React + Vite web app with the project list and a drag-and-drop task board. Login and tasks run on mocks until the API has them.
 
-PostgreSQL and Redis run in Docker Compose; the apps run with Node on your machine.
+Everything runs in Docker Compose: PostgreSQL, Redis, pgAdmin, the API and the web app. Nothing needs to run on your machine except Docker.
 ## Design
 # Projects Page
 <img width="1940" height="1512" alt="image" src="https://github.com/user-attachments/assets/00e3b467-4c68-4fbf-be0a-6064e17b0b45" />
@@ -14,18 +14,11 @@ PostgreSQL and Redis run in Docker Compose; the apps run with Node on your machi
 
 ## Prerequisites
 
-- Node.js 22.22+
 - Docker Desktop (with Docker Compose)
 
-## Run locally
+## Run
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Create a `.env` file in the project root
+1. Create a `.env` file in the project root
 
    ```env
    DB_HOST=localhost
@@ -41,24 +34,27 @@ PostgreSQL and Redis run in Docker Compose; the apps run with Node on your machi
    REDIS_PORT=6379
    ```
 
-   These values are used by both Docker Compose and the API. Change them if you like, except the Redis ones: Docker Compose always publishes Redis on port `6379`.
-   Optionally set `PORT` to change the port the API listens on (default `3000`). If you do, change `API_TARGET` in `apps/web/vite.config.ts` to match, because the web app proxies its requests to that port.
+   These values are used by both Docker Compose and the API. Inside Compose, the API container overrides `DB_HOST`, `DB_PORT`, `REDIS_HOST` and `REDIS_PORT` to reach the `db` and `redis` services, so `DB_PORT` here only sets the port Postgres is published on for your host tools.
 
-3. Start PostgreSQL, pgAdmin and Redis
-
-   ```bash
-   docker compose up -d
-   ```
-
-4. Start the apps in watch mode
+2. Build and start everything
 
    ```bash
-   npm run dev        # API and web together
-   npm run dev:api    # API only
-   npm run dev:web    # web only
+   docker compose up -d --build
    ```
+
+   The API container runs pending migrations and then starts Nest in watch mode. The web container runs Vite. Both reload when you edit files on your machine, because the repo is bind-mounted into them. The containers restart on their own when Docker starts, so after this first run there is nothing to start by hand.
 
 The API is now at http://localhost:3000 and the web app at http://localhost:5173.
+
+### Day-to-day
+
+```bash
+docker compose logs -f api web     # follow app logs
+docker compose restart api         # restart one service
+docker compose up -d --build -V    # after changing dependencies (rebuilds and recreates the node_modules volumes)
+```
+
+Each app container keeps its own Linux `node_modules` in a volume, separate from any `node_modules` on your machine. To add a package, edit `package.json` (or run `docker compose exec api npm install <pkg> -w api`) and then rebuild with `-V` as shown above.
 
 ## Check it works
 
@@ -118,21 +114,20 @@ docker compose down -v     # stop containers and delete the database volume
 
 ## Other scripts
 
-API scripts are run with `-w api` and web scripts with `-w web` (the workspace names):
+Run scripts inside the containers with `docker compose exec`. API scripts take `-w api` and web scripts take `-w web` (the workspace names):
 
 ```bash
-npm run build -w api        # compile to apps/api/dist/
-npm run start:prod -w api   # run compiled build
-npm run lint -w api         # eslint with --fix
-npm run format -w api       # prettier
-npm run test -w api         # unit tests
-npm run test:e2e -w api     # e2e tests
+docker compose exec api npm run migration:generate -w api -- src/migrations/Name
+docker compose exec api npm run migration:run -w api
+docker compose exec api npm run lint -w api         # eslint with --fix
+docker compose exec api npm run format -w api       # prettier
+docker compose exec api npm run test -w api         # unit tests
+docker compose exec api npm run test:e2e -w api     # e2e tests
+docker compose exec api npm run build -w api        # compile to apps/api/dist/
 
-npm run build -w web        # type-check and production build
-npm run lint -w web         # oxlint
+docker compose exec web npm run build -w web        # type-check and production build
+docker compose exec web npm run lint -w web         # oxlint
 ```
-
-`npm run build` without `-w` builds both apps.
 
 ## License
 
