@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { getSession } from '@/api/session';
-import type { ChatMessage, Project, Task } from '@/api/types';
+import type { ChatMessage, Project, Task, TaskStatus } from '@/api/types';
 
 interface ServerToClientEvents {
   joinedProject: (payload: { projectId: number }) => void;
@@ -11,6 +11,9 @@ interface ServerToClientEvents {
   taskCreated: (task: Task) => void;
   taskUpdated: (task: Task) => void;
   taskDeleted: (payload: { id: number; projectId: number }) => void;
+  statusCreated: (status: TaskStatus) => void;
+  statusUpdated: (status: TaskStatus) => void;
+  statusDeleted: (payload: { id: number; projectId: number }) => void;
   projectCreated: (project: Project) => void;
   projectUpdated: (project: Project) => void;
   projectRemoved: (payload: { id: number }) => void;
