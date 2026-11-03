@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 import { USE_MOCK_AUTH } from '@/api/auth';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +21,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const loginMutation = useMutation({ mutationFn: login });
 
-  // Also handles the moment login succeeds: the session store updates,
-  // this component re-renders and redirects.
+  // Also covers a fresh login: the session updates, we re-render and redirect.
   if (user) {
     const from = (location.state as { from?: string } | null)?.from;
     return <Navigate to={from ?? '/projects'} replace />;
@@ -74,6 +73,12 @@ export function LoginPage() {
             <Button type="submit" disabled={loginMutation.isPending}>
               {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              No account yet?{' '}
+              <Link to="/register" className="text-foreground underline">
+                Create one
+              </Link>
+            </p>
             {USE_MOCK_AUTH && (
               <p className="text-xs text-muted-foreground">
                 Mock auth is on: any email and password work.
