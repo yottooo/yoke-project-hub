@@ -1,18 +1,24 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link, useParams } from 'react-router';
-import type { TaskStatus } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { ChatWidget } from '@/features/chat/ChatWidget';
 import { useProject } from '@/features/projects/queries';
 import { useProjectRoom } from '@/lib/socket';
 import { Board } from './Board';
 import { useLiveTasks, useTasks, useUpdateTask } from './queries';
+import {
+  useCreateStatus,
+  useDeleteStatus,
+  useLiveStatuses,
+  useStatuses,
+  useUpdateStatus,
+} from './statusQueries';
 import { TaskDialog } from './TaskDialog';
 
 /** Which dialog is open: a new task, an existing one, or none. */
 type DialogState =
-  | { mode: 'create'; status: TaskStatus }
+  | { mode: 'create'; statusId?: number }
   | { mode: 'edit'; taskId: number }
   | null;
 
@@ -31,12 +37,22 @@ function ProjectUnavailable({ message }: { message: string }) {
 function ProjectBoard({ projectId }: { projectId: number }) {
   const project = useProject(projectId);
   const tasks = useTasks(projectId);
+  const statuses = useStatuses(projectId);
   const updateTask = useUpdateTask(projectId);
+  const createStatus = useCreateStatus(projectId);
+  const updateStatus = useUpdateStatus(projectId);
+  const deleteStatus = useDeleteStatus(projectId);
   const [dialog, setDialog] = useState<DialogState>(null);
 
-  // Join the project's room and reload tasks whenever someone else changes them.
+  // Join the project's room and reload tasks and columns whenever someone else changes them.
   useProjectRoom(projectId);
   useLiveTasks(projectId);
+  useLiveStatuses(projectId);
+
+  // The latest failed column change, if any; each mutation clears its own error on the next try.
+  const columnError =
+    createStatus.error ?? updateStatus.error ?? deleteStatus.error;
+  const loadError = tasks.error ?? statuses.error;
 
   if (project.isError) {
     return <ProjectUnavailable message={project.error.message} />;
@@ -62,7 +78,7 @@ function ProjectBoard({ projectId }: { projectId: number }) {
             {project.data?.name ?? 'Loading…'}
           </h1>
         </div>
-        <Button onClick={() => setDialog({ mode: 'create', status: 'todo' })}>
+        <Button onClick={() => setDialog({ mode: 'create' })}>
           <Plus /> New task
         </Button>
       </div>
@@ -77,27 +93,42 @@ function ProjectBoard({ projectId }: { projectId: number }) {
         </p>
       )}
 
-      {tasks.isPending && (
-        <p className="p-6 text-sm text-muted-foreground">Loading tasks…</p>
-      )}
-      {tasks.isError && (
-        <p role="alert" className="p-6 text-sm text-destructive">
-          Couldn’t load tasks: {tasks.error.message}
+      {columnError && (
+        <p
+          role="alert"
+          className="shrink-0 bg-destructive/10 px-6 py-2 text-sm text-destructive"
+        >
+          Couldn’t change the column: {columnError.message}
         </p>
       )}
-      {tasks.data && (
+
+      {(tasks.isPending || statuses.isPending) && !loadError && (
+        <p className="p-6 text-sm text-muted-foreground">Loading tasks…</p>
+      )}
+      {loadError && (
+        <p role="alert" className="p-6 text-sm text-destructive">
+          Couldn’t load the board: {loadError.message}
+        </p>
+      )}
+      {tasks.data && statuses.data && (
         <Board
           tasks={tasks.data}
+          statuses={statuses.data}
           onMove={(id, input) => updateTask.mutate({ id, input })}
           onTaskClick={(task) => setDialog({ mode: 'edit', taskId: task.id })}
-          onAddTask={(status) => setDialog({ mode: 'create', status })}
+          onAddTask={(statusId) => setDialog({ mode: 'create', statusId })}
+          onAddStatus={(name, onSuccess) =>
+            createStatus.mutate({ name }, { onSuccess })
+          }
+          onUpdateStatus={(id, input) => updateStatus.mutate({ id, input })}
+          onDeleteStatus={(id) => deleteStatus.mutate(id)}
         />
       )}
 
       {dialog?.mode === 'create' && (
         <TaskDialog
           projectId={projectId}
-          defaultStatus={dialog.status}
+          defaultStatusId={dialog.statusId}
           onClose={() => setDialog(null)}
         />
       )}
