@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import type { Task, TaskStatus } from '@/api/types';
+import { useEffect, useState } from 'react';
+import { Loader2Icon, TrashIcon, XIcon } from 'lucide-react';
+import type { Task } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,7 +13,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { BOARD_COLUMNS } from './columns';
 import { positionBetween, tasksInColumn } from './position';
 import {
   useCreateTask,
@@ -20,41 +20,55 @@ import {
   useTasks,
   useUpdateTask,
 } from './queries';
+import { useStatuses } from './statusQueries';
+
+// How long the delete confirmation stays open before it closes on its own.
+const CONFIRM_TIMEOUT_MS = 4000;
 
 interface TaskDialogProps {
   projectId: number;
   /** The task to edit. Leave out to create a new one. */
   task?: Task;
-  /** Column a new task starts in. */
-  defaultStatus?: TaskStatus;
+  /** Column a new task starts in; leave out for the leftmost one. */
+  defaultStatusId?: number;
   onClose: () => void;
 }
 
 export function TaskDialog({
   projectId,
   task,
-  defaultStatus = 'todo',
+  defaultStatusId,
   onClose,
 }: TaskDialogProps) {
   const tasks = useTasks(projectId);
+  const statuses = useStatuses(projectId);
   const createTask = useCreateTask(projectId);
   const updateTask = useUpdateTask(projectId);
   const deleteTask = useDeleteTask(projectId);
 
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
-  const [status, setStatus] = useState(task?.status ?? defaultStatus);
+  const [statusId, setStatusId] = useState(
+    task?.statusId ?? defaultStatusId ?? statuses.data?.[0]?.id,
+  );
   const [assignee, setAssignee] = useState(task?.assignee ?? '');
+  const [confirming, setConfirming] = useState(false);
 
   const error = createTask.error ?? updateTask.error ?? deleteTask.error;
   const busy =
     createTask.isPending || updateTask.isPending || deleteTask.isPending;
 
+  useEffect(() => {
+    if (!confirming || deleteTask.isPending) return;
+    const timer = setTimeout(() => setConfirming(false), CONFIRM_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [confirming, deleteTask.isPending]);
+
   const save = () => {
     const fields = {
       title: title.trim(),
       description: description.trim() || null,
-      status,
+      statusId,
       assignee: assignee.trim() || null,
     };
 
@@ -64,9 +78,12 @@ export function TaskDialog({
     }
 
     // A task moved to another column through this form lands at its bottom.
-    const last = tasksInColumn(tasks.data ?? [], status).at(-1);
+    const last =
+      statusId === undefined
+        ? undefined
+        : tasksInColumn(tasks.data ?? [], statusId).at(-1);
     const position =
-      status === task.status
+      statusId === task.statusId
         ? task.position
         : positionBetween(last?.position, undefined);
     updateTask.mutate(
@@ -82,7 +99,15 @@ export function TaskDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onEscapeKeyDown={(event) => {
+          // Escape backs out of the delete confirmation before closing the dialog.
+          if (confirming) {
+            event.preventDefault();
+            setConfirming(false);
+          }
+        }}
+      >
         <form
           className="grid gap-4"
           onSubmit={(event) => {
@@ -121,15 +146,13 @@ export function TaskDialog({
               <Label htmlFor="task-status">Status</Label>
               <select
                 id="task-status"
-                value={status}
-                onChange={(event) =>
-                  setStatus(event.target.value as TaskStatus)
-                }
+                value={statusId ?? ''}
+                onChange={(event) => setStatusId(Number(event.target.value))}
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               >
-                {BOARD_COLUMNS.map((column) => (
-                  <option key={column.status} value={column.status}>
-                    {column.title}
+                {statuses.data?.map((status) => (
+                  <option key={status.id} value={status.id}>
+                    {status.name}
                   </option>
                 ))}
               </select>
@@ -151,21 +174,54 @@ export function TaskDialog({
           )}
 
           <DialogFooter>
-            {task && (
-              <Button
-                type="button"
-                variant="destructive"
-                className="sm:mr-auto"
-                disabled={busy}
-                onClick={() => {
-                  if (window.confirm('Delete this task?')) {
-                    deleteTask.mutate(task.id, { onSuccess: onClose });
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            )}
+            {task &&
+              (confirming ? (
+                <div className="flex h-8 items-center gap-1.5 duration-150 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2 sm:mr-auto">
+                  <span className="text-xs text-muted-foreground">
+                    Delete task?
+                  </span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      deleteTask.mutate(task.id, {
+                        onSuccess: onClose,
+                        onError: () => setConfirming(false),
+                      })
+                    }
+                  >
+                    {deleteTask.isPending ? (
+                      <Loader2Icon className="animate-spin" />
+                    ) : (
+                      <TrashIcon />
+                    )}
+                    Delete
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    autoFocus
+                    aria-label="Cancel delete"
+                    onClick={() => setConfirming(false)}
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="duration-150 animate-in fade-in-0 zoom-in-95 sm:mr-auto"
+                  disabled={busy}
+                  onClick={() => setConfirming(true)}
+                >
+                  Delete
+                </Button>
+              ))}
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

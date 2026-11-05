@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Task, TaskStatus } from '@/api/types';
+import type { Task } from '@/api/types';
 import { cn } from '@/lib/utils';
 
 /** The card's looks only. Also what follows the pointer during a drag. */
@@ -48,12 +48,12 @@ export function TaskCard({
     isDragging,
     isOver,
     active,
-  } = useSortable({ id: task.id, data: { status: task.status } });
+  } = useSortable({ id: task.id, data: { statusId: task.statusId } });
 
   // Same-column cards shift to preview a reorder; a card from another column needs a marker.
-  const draggedFrom: TaskStatus | undefined = active?.data.current?.status;
+  const draggedFrom: number | undefined = active?.data.current?.statusId;
   const showInsertLine =
-    isOver && active?.id !== task.id && draggedFrom !== task.status;
+    isOver && active?.id !== task.id && draggedFrom !== task.statusId;
 
   return (
     <TaskCardView
