@@ -83,17 +83,17 @@ Every request then carries `Authorization: Bearer <accessToken>`. A `401` from a
 ### Tasks
 
 ```
-GET    /projects/:projectId/tasks                                             ->  Task[]
-POST   /projects/:projectId/tasks  { title, description?, status?, assignee? }  ->  Task
-PATCH  /tasks/:id                  { title?, description?, status?, position?, assignee? }  ->  Task
-DELETE /tasks/:id                                                             ->  Task
+GET    /projects/:projectId/tasks                                               ->  Task[]
+POST   /projects/:projectId/tasks  { title, description?, statusId?, assignee? }  ->  Task
+PATCH  /tasks/:id                  { title?, description?, statusId?, position?, assignee? }  ->  Task
+DELETE /tasks/:id                                                               ->  Task
 
 Task = {
   id: number
   projectId: number
   title: string
   description: string | null
-  status: 'todo' | 'in_progress' | 'done'
+  statusId: number        // the task's column, a TaskStatus of the same project
   position: number        // order inside a column, ascending
   assignee: string | null
   createdAt: string       // ISO date
@@ -102,18 +102,46 @@ Task = {
 ```
 
 - `position` is any number. When a card is dropped, the front end sends a value between its new neighbours, so the API only has to save it. A new task should get a position after the last one in its column.
+- Without `statusId`, a new task goes to the project's leftmost column. A `statusId` of another project is a `400`.
+
+### Columns (statuses)
+
+Each project has its own columns. A new project starts with To do, In progress and Done.
+
+```
+GET    /projects/:projectId/statuses                    ->  TaskStatus[]
+POST   /projects/:projectId/statuses  { name, color? }  ->  TaskStatus
+PATCH  /statuses/:id                  { name?, color?, position? }  ->  TaskStatus
+DELETE /statuses/:id                                    ->  TaskStatus
+
+TaskStatus = {
+  id: number
+  projectId: number
+  name: string            // 1–50 characters, unique within the project (ignoring case)
+  color: 'slate' | 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'pink' | 'teal'
+  position: number        // order on the board, left to right, ascending
+  createdAt: string       // ISO date
+  updatedAt: string       // ISO date
+}
+```
+
+- A new column goes to the right end. Moving one works like moving a card: the front end sends a `position` between its new neighbours.
+- A taken name is a `409`. So is deleting a column that still has tasks, or the project's last column.
 
 ### Socket events
 
-Emitted by the API to the room `project-{projectId}` after each task change:
+Emitted by the API to the room `project-{projectId}` after each task or column change:
 
 ```
-taskCreated   Task
-taskUpdated   Task
-taskDeleted   { id, projectId }
+taskCreated     Task
+taskUpdated     Task
+taskDeleted     { id, projectId }
+statusCreated   TaskStatus
+statusUpdated   TaskStatus
+statusDeleted   { id, projectId }
 ```
 
-The front end only reads `projectId` from these and reloads that project's tasks.
+The front end only reads `projectId` from these and reloads that project's tasks or columns.
 
 Emitted to everyone, for the project list (the planned FeedGateway):
 
@@ -147,4 +175,4 @@ src/
 
 In each feature, `queries.ts` holds everything that loads or changes data; the other files are what is on screen.
 
-To add a board column, add the status to `TaskStatus` in `src/api/types.ts` and an entry to `BOARD_COLUMNS` in `src/features/board/columns.ts`.
+Board columns are data, not code: each project manages its own from the board (add, rename, recolor, drag to reorder, delete when empty). To offer another column color, add it to `STATUS_COLORS` in both `src/api/types.ts` and the API's `status.entity.ts`, and give it classes in `STATUS_COLOR_CLASSES` (`src/features/board/columns.ts`).
