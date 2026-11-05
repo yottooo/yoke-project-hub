@@ -46,14 +46,48 @@ export interface RegisterInput extends LoginInput {
   name?: string;
 }
 
-export type TaskStatus = 'todo' | 'in_progress' | 'done';
+export const STATUS_COLORS = [
+  'slate',
+  'blue',
+  'green',
+  'amber',
+  'red',
+  'purple',
+  'pink',
+  'teal',
+] as const;
+
+export type StatusColor = (typeof STATUS_COLORS)[number];
+
+/** A board column. Each project has its own. */
+export interface TaskStatus {
+  id: number;
+  projectId: number;
+  /** 1–50 characters, unique within the project (ignoring case). */
+  name: string;
+  color: StatusColor;
+  /** Order on the board, left to right, ascending. Any number; gaps are fine. */
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateStatusInput {
+  name: string;
+  color?: StatusColor;
+}
+
+export type UpdateStatusInput = Partial<
+  Pick<TaskStatus, 'name' | 'color' | 'position'>
+>;
 
 export interface Task {
   id: number;
   projectId: number;
   title: string;
   description: string | null;
-  status: TaskStatus;
+  /** The id of the task's column (a TaskStatus of the same project). */
+  statusId: number;
   /** Order inside a column, ascending. Any number; gaps are fine. */
   position: number;
   assignee: string | null;
@@ -64,12 +98,13 @@ export interface Task {
 export interface CreateTaskInput {
   title: string;
   description?: string | null;
-  status?: TaskStatus;
+  /** Leave out to use the project's leftmost column. */
+  statusId?: number;
   assignee?: string | null;
 }
 
 export type UpdateTaskInput = Partial<
-  Pick<Task, 'title' | 'description' | 'status' | 'position' | 'assignee'>
+  Pick<Task, 'title' | 'description' | 'statusId' | 'position' | 'assignee'>
 >;
 
 export interface ChatMessage {
