@@ -7,6 +7,8 @@ import { Project } from './entities/project.entity';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { REDIS } from '../redis/redis.module';
+import { Status } from '../statuses/entities/status.entity';
+import { DEFAULT_STATUSES } from '../statuses/default-statuses';
 
 @Injectable()
 export class ProjectsService {
@@ -20,7 +22,15 @@ export class ProjectsService {
   ) {}
 
   async create(dto: CreateProjectDto): Promise<Project> {
-    const project = await this.repo.save(this.repo.create(dto));
+    // The default columns are saved with the project, so its board is never without them.
+    const project = await this.repo.manager.transaction(async (manager) => {
+      const saved = await manager.save(this.repo.create(dto));
+      await manager.insert(
+        Status,
+        DEFAULT_STATUSES.map((status) => ({ ...status, projectId: saved.id })),
+      );
+      return saved;
+    });
     await this.redis.del(this.ALL_KEY);
     this.events.emit('project.created', project);
     return project;
