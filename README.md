@@ -10,7 +10,8 @@ Everything runs in Docker Compose: PostgreSQL, Redis, pgAdmin, the API and the w
 # Projects Page
 <img width="1940" height="1512" alt="image" src="https://github.com/user-attachments/assets/00e3b467-4c68-4fbf-be0a-6064e17b0b45" />
 # Tasks
-<img width="2015" height="1296" alt="image" src="https://github.com/user-attachments/assets/99b75d0b-a88b-475a-8316-71b594d539a9" />
+<img width="2301" height="1075" alt="image" src="https://github.com/user-attachments/assets/839b1fe3-1528-4261-9734-58482a42edbd" />
+
 
 ## Prerequisites
 
