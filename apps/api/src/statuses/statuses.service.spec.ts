@@ -7,6 +7,7 @@ import { Status } from './entities/status.entity';
 import { Task } from '../tasks/entities/task.entity';
 import { TasksService } from '../tasks/tasks.service';
 import { ProjectsService } from '../projects/projects.service';
+import { EpicsService } from '../epics/epics.service';
 
 // The real package ships ESM, which this Jest setup can't load; only the class token is needed.
 jest.mock('@nestjs/event-emitter', () => ({
@@ -58,6 +59,11 @@ describe('StatusesService', () => {
         { provide: getRepositoryToken(Status), useValue: statusRepo },
         { provide: getRepositoryToken(Task), useValue: taskRepo },
         { provide: ProjectsService, useValue: { findOne: jest.fn() } },
+        // TasksService checks epics too; these tests never send an epicId.
+        {
+          provide: EpicsService,
+          useValue: { findForProjectOrThrow: jest.fn() },
+        },
         { provide: EventEmitter2, useValue: events },
       ],
     }).compile();
