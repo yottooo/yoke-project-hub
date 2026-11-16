@@ -84,8 +84,8 @@ Every request then carries `Authorization: Bearer <accessToken>`. A `401` from a
 
 ```
 GET    /projects/:projectId/tasks                                               ->  Task[]
-POST   /projects/:projectId/tasks  { title, description?, statusId?, assignee? }  ->  Task
-PATCH  /tasks/:id                  { title?, description?, statusId?, position?, assignee? }  ->  Task
+POST   /projects/:projectId/tasks  { title, description?, statusId?, epicId?, assignee? }  ->  Task
+PATCH  /tasks/:id                  { title?, description?, statusId?, epicId?, position?, assignee? }  ->  Task
 DELETE /tasks/:id                                                               ->  Task
 
 Task = {
@@ -94,6 +94,7 @@ Task = {
   title: string
   description: string | null
   statusId: number        // the task's column, a TaskStatus of the same project
+  epicId: number | null   // the task's epic, of the same project; null when it has none
   position: number        // order inside a column, ascending
   assignee: string | null
   createdAt: string       // ISO date
@@ -103,6 +104,7 @@ Task = {
 
 - `position` is any number. When a card is dropped, the front end sends a value between its new neighbours, so the API only has to save it. A new task should get a position after the last one in its column.
 - Without `statusId`, a new task goes to the project's leftmost column. A `statusId` of another project is a `400`.
+- `epicId` is optional; `null` takes the task out of its epic. An `epicId` of another project is a `400`.
 
 ### Columns (statuses)
 
@@ -128,9 +130,38 @@ TaskStatus = {
 - A new column goes to the right end. Moving one works like moving a card: the front end sends a `position` between its new neighbours.
 - A taken name is a `409`. So is deleting a column that still has tasks, or the project's last column.
 
+### Epics
+
+An epic groups a project's tasks toward one goal. Belonging to one is optional.
+
+```
+GET    /projects/:projectId/epics                                              ->  Epic[]
+POST   /projects/:projectId/epics  { name, description?, color?, startDate?, endDate? }  ->  Epic
+PATCH  /epics/:id                  { name?, description?, color?, startDate?, endDate?, position? }  ->  Epic
+DELETE /epics/:id                                                              ->  Epic
+
+Epic = {
+  id: number
+  projectId: number
+  name: string            // 1–80 characters, unique within the project (ignoring case)
+  description: string | null
+  color: 'slate' | 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'pink' | 'teal'
+  startDate: string | null  // calendar day, YYYY-MM-DD
+  endDate: string | null    // calendar day, YYYY-MM-DD, not before startDate
+  position: number        // order in the epic bar, ascending
+  createdAt: string       // ISO date
+  updatedAt: string       // ISO date
+}
+```
+
+- The list is sorted by `position`, then `id`. A new epic goes to the end.
+- A taken name is a `409`; an `endDate` before the `startDate` is a `400`.
+- Deleting an epic keeps its tasks: their `epicId` becomes `null`.
+- The board's epic filter lives in the URL: `/projects/:id?epic=<epicId>` or `?epic=none`.
+
 ### Socket events
 
-Emitted by the API to the room `project-{projectId}` after each task or column change:
+Emitted by the API to the room `project-{projectId}` after each task, column or epic change:
 
 ```
 taskCreated     Task
@@ -139,9 +170,12 @@ taskDeleted     { id, projectId }
 statusCreated   TaskStatus
 statusUpdated   TaskStatus
 statusDeleted   { id, projectId }
+epicCreated     Epic
+epicUpdated     Epic
+epicDeleted     { id, projectId }
 ```
 
-The front end only reads `projectId` from these and reloads that project's tasks or columns.
+The front end only reads `projectId` from these and reloads that project's tasks, columns or epics. Epic events also reload the tasks, since deleting an epic clears their `epicId`.
 
 Emitted to everyone, for the project list (the planned FeedGateway):
 

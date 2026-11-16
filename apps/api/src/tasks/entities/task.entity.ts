@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity';
 import { Status } from '../../statuses/entities/status.entity';
+import { Epic } from '../../epics/entities/epic.entity';
 
 @Entity()
 export class Task {
@@ -46,6 +47,15 @@ export class Task {
 
   @Column({ type: 'varchar', nullable: true })
   assignee: string | null;
+
+  // Optional epic. SET NULL: deleting an epic keeps its tasks, with no epic.
+  @Index()
+  @Column({ type: 'integer', nullable: true })
+  epicId: number | null;
+
+  @ManyToOne(() => Epic, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'epicId' })
+  epic?: Epic;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date | string;
