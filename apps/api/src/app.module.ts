@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { StatusesModule } from './statuses/statuses.module';
+import { EpicsModule } from './epics/epics.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { StatusesModule } from './statuses/statuses.module';
     AuthModule,
     TasksModule,
     StatusesModule,
+    EpicsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
