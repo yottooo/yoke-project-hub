@@ -1,22 +1,18 @@
 import type { Task, TaskStatus } from '@/api/types';
+import { statusIdFromDragId, type ColumnDragId } from './columns';
 
-// Where a card sits. Each task has a `position` number, and a column shows
-// its tasks sorted by it. Moving a card only changes that one task: it gets
-// a position between its new neighbours.
+// Columns sort by `position`; a move only gives the moved task a value between its new neighbours.
 
 const POSITION_STEP = 1000;
 
 /** One column's tasks in display order. */
-export function tasksInColumn(tasks: Task[], status: TaskStatus): Task[] {
+export function tasksInColumn(tasks: Task[], statusId: number): Task[] {
   return tasks
-    .filter((task) => task.status === status)
+    .filter((task) => task.statusId === statusId)
     .sort((a, b) => a.position - b.position || a.id - b.id);
 }
 
-/**
- * A position that sorts between two neighbours. Either may be missing, at
- * the top or the bottom of a column.
- */
+/** A position between two neighbours, either of which may be missing at a column's edge. */
 export function positionBetween(
   before: number | undefined,
   after: number | undefined,
@@ -28,37 +24,32 @@ export function positionBetween(
   return (before + after) / 2;
 }
 
-/**
- * Where a dropped card ends up, or null when the drop changes nothing.
- * `overId` is what it was dropped on: a task id (the card takes that card's
- * slot) or a column's status (the card goes to the end of that column).
- */
+/** Where a dropped card lands, or null: on a task it takes that slot, on a column it goes last. */
 export function resolveDrop(
   tasks: Task[],
   activeId: number,
-  overId: number | TaskStatus,
-): { status: TaskStatus; position: number } | null {
+  overId: number | ColumnDragId,
+): { statusId: number; position: number } | null {
   const active = tasks.find((task) => task.id === activeId);
   const overTask = tasks.find((task) => task.id === overId);
   if (!active || overId === activeId) return null;
 
-  let status: TaskStatus;
+  let statusId: number;
   if (typeof overId === 'number') {
     if (!overTask) return null;
-    status = overTask.status;
+    statusId = overTask.statusId;
   } else {
-    status = overId;
+    statusId = statusIdFromDragId(overId);
   }
 
-  const column = tasksInColumn(tasks, status);
+  const column = tasksInColumn(tasks, statusId);
   const others = column.filter((task) => task.id !== activeId);
-  const sameColumn = active.status === status;
+  const sameColumn = active.statusId === statusId;
 
   // Index in `others` at which the card is inserted.
   let index = others.length;
   if (overTask) {
-    // Within a column this matches the reordering the list previews while
-    // dragging. From another column the card lands just above the hovered one.
+    // Same column: match the drag preview. Other column: land just above the hovered card.
     index = (sameColumn ? column : others).indexOf(overTask);
   }
 
@@ -74,7 +65,24 @@ export function resolveDrop(
   }
 
   return {
-    status,
+    statusId,
     position: positionBetween(before?.position, after?.position),
   };
+}
+
+/** The new position of a column moved to `toIndex` among the sorted columns, or null if it stays. */
+export function columnPositionAt(
+  statuses: TaskStatus[],
+  statusId: number,
+  toIndex: number,
+): number | null {
+  const fromIndex = statuses.findIndex((status) => status.id === statusId);
+  if (fromIndex === -1 || toIndex === fromIndex) return null;
+  if (toIndex < 0 || toIndex >= statuses.length) return null;
+
+  const others = statuses.filter((status) => status.id !== statusId);
+  return positionBetween(
+    others[toIndex - 1]?.position,
+    others[toIndex]?.position,
+  );
 }

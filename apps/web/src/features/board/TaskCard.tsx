@@ -1,15 +1,17 @@
 import type { ComponentProps } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Task } from '@/api/types';
+import type { Epic, Task } from '@/api/types';
 import { cn } from '@/lib/utils';
+import { STATUS_COLOR_CLASSES } from './columns';
 
 /** The card's looks only. Also what follows the pointer during a drag. */
 export function TaskCardView({
   task,
+  epic,
   className,
   ...props
-}: { task: Task } & ComponentProps<'div'>) {
+}: { task: Task; epic?: Epic } & ComponentProps<'div'>) {
   return (
     <div
       className={cn(
@@ -24,8 +26,24 @@ export function TaskCardView({
           {task.description}
         </p>
       )}
-      {task.assignee && (
-        <p className="mt-2 text-xs text-muted-foreground">@{task.assignee}</p>
+      {(epic || task.assignee) && (
+        <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          {epic && (
+            <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted px-2 py-0.5">
+              <span
+                aria-hidden
+                className={cn(
+                  'size-1.5 shrink-0 rounded-full',
+                  STATUS_COLOR_CLASSES[epic.color].dot,
+                )}
+              />
+              <span className="truncate">{epic.name}</span>
+            </span>
+          )}
+          {task.assignee && (
+            <span className="truncate">@{task.assignee}</span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -34,9 +52,11 @@ export function TaskCardView({
 /** A card in a column: draggable, and opens the task on click. */
 export function TaskCard({
   task,
+  epic,
   onClick,
 }: {
   task: Task;
+  epic?: Epic;
   onClick: () => void;
 }) {
   const {
@@ -59,6 +79,7 @@ export function TaskCard({
     <TaskCardView
       ref={setNodeRef}
       task={task}
+      epic={epic}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         'relative cursor-grab outline-none focus-visible:ring-3 focus-visible:ring-ring/50',

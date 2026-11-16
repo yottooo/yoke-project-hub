@@ -21,6 +21,7 @@ import {
   useUpdateTask,
 } from './queries';
 import { useStatuses } from './statusQueries';
+import { useEpics } from './epicQueries';
 
 // How long the delete confirmation stays open before it closes on its own.
 const CONFIRM_TIMEOUT_MS = 4000;
@@ -31,17 +32,24 @@ interface TaskDialogProps {
   task?: Task;
   /** Column a new task starts in; leave out for the leftmost one. */
   defaultStatusId?: number;
+  /** Epic a new task starts in, such as the one the board is filtered to. */
+  defaultEpicId?: number | null;
   onClose: () => void;
 }
+
+const selectClass =
+  'h-8 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30';
 
 export function TaskDialog({
   projectId,
   task,
   defaultStatusId,
+  defaultEpicId = null,
   onClose,
 }: TaskDialogProps) {
   const tasks = useTasks(projectId);
   const statuses = useStatuses(projectId);
+  const epics = useEpics(projectId);
   const createTask = useCreateTask(projectId);
   const updateTask = useUpdateTask(projectId);
   const deleteTask = useDeleteTask(projectId);
@@ -52,7 +60,18 @@ export function TaskDialog({
     task?.statusId ?? defaultStatusId ?? statuses.data?.[0]?.id,
   );
   const [assignee, setAssignee] = useState(task?.assignee ?? '');
+  const [openedEpicId] = useState(task ? task.epicId : defaultEpicId);
+  const [chosenEpicId, setEpicId] = useState<number | null>(openedEpicId);
   const [confirming, setConfirming] = useState(false);
+
+  // An epic deleted (here or in another tab) while the form is open counts as "No epic",
+  // so saving doesn't send an id the API would reject.
+  const epicId =
+    chosenEpicId !== null &&
+    epics.data &&
+    !epics.data.some((epic) => epic.id === chosenEpicId)
+      ? null
+      : chosenEpicId;
 
   const error = createTask.error ?? updateTask.error ?? deleteTask.error;
   const busy =
@@ -69,6 +88,10 @@ export function TaskDialog({
       title: title.trim(),
       description: description.trim() || null,
       statusId,
+      // On edit, only when changed here: otherwise saving the title would undo an
+      // epic change made meanwhile in another tab.
+      // `task` is the live copy, so compare with the value the form opened with.
+      ...(!task || epicId !== openedEpicId ? { epicId } : {}),
       assignee: assignee.trim() || null,
     };
 
@@ -100,6 +123,8 @@ export function TaskDialog({
       }}
     >
       <DialogContent
+        // A long description must not push the buttons off-screen.
+        className="max-h-[90vh] overflow-y-auto"
         onEscapeKeyDown={(event) => {
           // Escape backs out of the delete confirmation before closing the dialog.
           if (confirming) {
@@ -137,9 +162,31 @@ export function TaskDialog({
             <Textarea
               id="task-description"
               rows={3}
+              maxLength={2000}
+              className="max-h-48"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="task-epic">Epic</Label>
+            <select
+              id="task-epic"
+              value={epicId ?? ''}
+              onChange={(event) =>
+                setEpicId(
+                  event.target.value === '' ? null : Number(event.target.value),
+                )
+              }
+              className={selectClass}
+            >
+              <option value="">No epic</option>
+              {epics.data?.map((epic) => (
+                <option key={epic.id} value={epic.id}>
+                  {epic.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -148,7 +195,7 @@ export function TaskDialog({
                 id="task-status"
                 value={statusId ?? ''}
                 onChange={(event) => setStatusId(Number(event.target.value))}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                className={selectClass}
               >
                 {statuses.data?.map((status) => (
                   <option key={status.id} value={status.id}>
