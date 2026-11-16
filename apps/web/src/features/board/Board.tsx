@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   closestCenter,
   closestCorners,
@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import type {
+  Epic,
   Task,
   TaskStatus,
   UpdateStatusInput,
@@ -49,7 +50,15 @@ const collisionDetection: CollisionDetection = (args) => {
 };
 
 interface BoardProps {
+  /** The tasks to show; with an epic filter on, only the matching ones. */
   tasks: Task[];
+  /**
+   * Every task of the project, hidden ones included. Drops are placed among these, so a
+   * move made while filtered never takes a hidden task's position; same for the delete check.
+   */
+  allTasks: Task[];
+  /** The project's epics, for the label on each card. */
+  epics: Epic[];
   /** The project's columns, left to right. */
   statuses: TaskStatus[];
   onMove: (id: number, input: UpdateTaskInput) => void;
@@ -62,6 +71,8 @@ interface BoardProps {
 
 export function Board({
   tasks,
+  allTasks,
+  epics,
   statuses,
   onMove,
   onTaskClick,
@@ -76,6 +87,12 @@ export function Board({
   const activeColumn = statuses.find(
     (status) => columnDragId(status.id) === activeId,
   );
+  const epicsById = useMemo(
+    () => new Map(epics.map((epic) => [epic.id, epic])),
+    [epics],
+  );
+  const epicOf = (task: Task) =>
+    task.epicId === null ? undefined : epicsById.get(task.epicId);
 
   // Require a small move before dragging, so a plain click still opens the task.
   const sensors = useSensors(
@@ -101,7 +118,12 @@ export function Board({
 
     // Card ids are task ids (numbers), column ids are `status-{id}` strings.
     const taskId = active.id as number;
-    const result = resolveDrop(tasks, taskId, over.id as number | ColumnDragId);
+    // The hovered card is visible, so it's in allTasks too; its hidden neighbours count.
+    const result = resolveDrop(
+      allTasks,
+      taskId,
+      over.id as number | ColumnDragId,
+    );
     if (result) onMove(taskId, result);
   };
 
@@ -123,6 +145,10 @@ export function Board({
               key={status.id}
               status={status}
               tasks={tasksInColumn(tasks, status.id)}
+              epicsById={epicsById}
+              taskCountAll={
+                allTasks.filter((task) => task.statusId === status.id).length
+              }
               index={index}
               columnCount={statuses.length}
               onTaskClick={onTaskClick}
@@ -142,6 +168,7 @@ export function Board({
         {activeTask && (
           <TaskCardView
             task={activeTask}
+            epic={epicOf(activeTask)}
             className="cursor-grabbing shadow-lg"
           />
         )}
@@ -155,7 +182,7 @@ export function Board({
               count={tasksInColumn(tasks, activeColumn.id).length}
             />
             {tasksInColumn(tasks, activeColumn.id).map((task) => (
-              <TaskCardView key={task.id} task={task} />
+              <TaskCardView key={task.id} task={task} epic={epicOf(task)} />
             ))}
           </BoardColumnView>
         )}

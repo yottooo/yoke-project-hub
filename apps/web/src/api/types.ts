@@ -81,6 +81,39 @@ export type UpdateStatusInput = Partial<
   Pick<TaskStatus, 'name' | 'color' | 'position'>
 >;
 
+/** A group of a project's tasks working toward one goal. */
+export interface Epic {
+  id: number;
+  projectId: number;
+  /** 1–80 characters, unique within the project (ignoring case). */
+  name: string;
+  description: string | null;
+  color: StatusColor;
+  /** A calendar day, `YYYY-MM-DD`. */
+  startDate: string | null;
+  /** A calendar day, `YYYY-MM-DD`; never before `startDate`. */
+  endDate: string | null;
+  /** Order in the epic bar, ascending. Any number; gaps are fine. */
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEpicInput {
+  name: string;
+  description?: string | null;
+  color?: StatusColor;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export type UpdateEpicInput = Partial<
+  Pick<
+    Epic,
+    'name' | 'description' | 'color' | 'startDate' | 'endDate' | 'position'
+  >
+>;
+
 export interface Task {
   id: number;
   projectId: number;
@@ -88,6 +121,8 @@ export interface Task {
   description: string | null;
   /** The id of the task's column (a TaskStatus of the same project). */
   statusId: number;
+  /** The task's epic (of the same project), or null when it has none. */
+  epicId: number | null;
   /** Order inside a column, ascending. Any number; gaps are fine. */
   position: number;
   assignee: string | null;
@@ -100,11 +135,15 @@ export interface CreateTaskInput {
   description?: string | null;
   /** Leave out to use the project's leftmost column. */
   statusId?: number;
+  epicId?: number | null;
   assignee?: string | null;
 }
 
 export type UpdateTaskInput = Partial<
-  Pick<Task, 'title' | 'description' | 'statusId' | 'position' | 'assignee'>
+  Pick<
+    Task,
+    'title' | 'description' | 'statusId' | 'epicId' | 'position' | 'assignee'
+  >
 >;
 
 export interface ChatMessage {
