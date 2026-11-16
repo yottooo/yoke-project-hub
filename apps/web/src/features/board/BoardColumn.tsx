@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {
   STATUS_COLORS,
+  type Epic,
   type StatusColor,
   type Task,
   type TaskStatus,
@@ -91,6 +92,10 @@ interface BoardColumnProps {
   status: TaskStatus;
   /** This column's tasks, already in display order. */
   tasks: Task[];
+  /** The project's epics by id, for the label on each card. */
+  epicsById: Map<number, Epic>;
+  /** Tasks in this column including ones an epic filter hides; deleting needs it to be 0. */
+  taskCountAll: number;
   /** Where the column sits, to disable moving past either end. */
   index: number;
   columnCount: number;
@@ -105,6 +110,8 @@ interface BoardColumnProps {
 export function BoardColumn({
   status,
   tasks,
+  epicsById,
+  taskCountAll,
   index,
   columnCount,
   onTaskClick,
@@ -137,9 +144,10 @@ export function BoardColumn({
   }, [confirming]);
 
   // Why the column can't be deleted, if it can't.
+  // Counts hidden tasks too: the API refuses while any task is in the column.
   const deleteBlocker =
-    tasks.length > 0
-      ? `Move its ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'} out first`
+    taskCountAll > 0
+      ? `Move its ${taskCountAll} ${taskCountAll === 1 ? 'task' : 'tasks'} out first`
       : columnCount <= 1
         ? 'A board needs at least one column'
         : null;
@@ -238,6 +246,9 @@ export function BoardColumn({
             <TaskCard
               key={task.id}
               task={task}
+              epic={
+                task.epicId === null ? undefined : epicsById.get(task.epicId)
+              }
               onClick={() => onTaskClick(task)}
             />
           ))}

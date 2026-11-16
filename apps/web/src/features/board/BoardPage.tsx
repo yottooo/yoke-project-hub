@@ -1,11 +1,19 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { ChatWidget } from '@/features/chat/ChatWidget';
 import { useProject } from '@/features/projects/queries';
 import { useProjectRoom } from '@/lib/socket';
 import { Board } from './Board';
+import { EpicBar, type EpicFilter } from './EpicBar';
+import { EpicDialog } from './EpicDialog';
+import { useEpics, useLiveEpics } from './epicQueries';
+import {
+  effectiveEpicFilter,
+  epicProgress,
+  filterTasksByEpic,
+} from './epicProgress';
 import { useLiveTasks, useTasks, useUpdateTask } from './queries';
 import {
   useCreateStatus,
@@ -21,6 +29,33 @@ type DialogState =
   | { mode: 'create'; statusId?: number }
   | { mode: 'edit'; taskId: number }
   | null;
+
+/** Which epic dialog is open: a new epic, an existing one, or none. */
+type EpicDialogState = { mode: 'create' } | { mode: 'edit'; epicId: number } | null;
+
+/** The `?epic=` filter: an epic id, `none` for tasks without one, or missing for all. */
+function useEpicFilter(): [EpicFilter, (value: EpicFilter) => void] {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const raw = searchParams.get('epic');
+  const id = Number(raw);
+  const filter: EpicFilter =
+    raw === 'none' ? 'none' : raw && Number.isInteger(id) && id > 0 ? id : null;
+
+  const setFilter = useCallback(
+    (value: EpicFilter) =>
+      setSearchParams(
+        (params) => {
+          const next = new URLSearchParams(params);
+          if (value === null) next.delete('epic');
+          else next.set('epic', String(value));
+          return next;
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  );
+  return [filter, setFilter];
+}
 
 function ProjectUnavailable({ message }: { message: string }) {
   return (
@@ -42,12 +77,42 @@ function ProjectBoard({ projectId }: { projectId: number }) {
   const createStatus = useCreateStatus(projectId);
   const updateStatus = useUpdateStatus(projectId);
   const deleteStatus = useDeleteStatus(projectId);
+  const epics = useEpics(projectId);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [epicDialog, setEpicDialog] = useState<EpicDialogState>(null);
+  const [requestedFilter, setEpicFilter] = useEpicFilter();
+  // Without epics there's no bar to clear the filter from, so show everything.
+  const epicFilter = epics.isError
+    ? null
+    : effectiveEpicFilter(requestedFilter, epics.data);
 
-  // Join the project's room and reload tasks and columns whenever someone else changes them.
+  // Drop a deleted or unknown epic from the URL, so a copied link doesn't carry it.
+  const staleFilter =
+    epics.data !== undefined &&
+    typeof requestedFilter === 'number' &&
+    epicFilter === null;
+  useEffect(() => {
+    if (staleFilter) setEpicFilter(null);
+  }, [staleFilter, setEpicFilter]);
+
+  const visibleTasks = useMemo(
+    () => (tasks.data ? filterTasksByEpic(tasks.data, epicFilter) : undefined),
+    [tasks.data, epicFilter],
+  );
+  // From every task, not just the visible ones, so the numbers don't change with the filter.
+  const progress = useMemo(
+    () =>
+      epics.data && tasks.data && statuses.data
+        ? epicProgress(epics.data, tasks.data, statuses.data)
+        : undefined,
+    [epics.data, tasks.data, statuses.data],
+  );
+
+  // Join the project's room and reload tasks, columns and epics whenever someone else changes them.
   useProjectRoom(projectId);
   useLiveTasks(projectId);
   useLiveStatuses(projectId);
+  useLiveEpics(projectId);
 
   // The latest failed column change, if any; each mutation clears its own error on the next try.
   const columnError =
@@ -62,6 +127,11 @@ function ProjectBoard({ projectId }: { projectId: number }) {
   const editing =
     dialog?.mode === 'edit'
       ? tasks.data?.find((task) => task.id === dialog.taskId)
+      : undefined;
+  // Same for epics: closes itself if another tab deletes the epic.
+  const editingEpic =
+    epicDialog?.mode === 'edit'
+      ? epics.data?.find((epic) => epic.id === epicDialog.epicId)
       : undefined;
 
   return (
@@ -82,6 +152,25 @@ function ProjectBoard({ projectId }: { projectId: number }) {
           <Plus /> New task
         </Button>
       </div>
+
+      {epics.data && (
+        <EpicBar
+          epics={epics.data}
+          selectedEpic={epicFilter}
+          onSelect={setEpicFilter}
+          progress={progress}
+          onEdit={(epic) => setEpicDialog({ mode: 'edit', epicId: epic.id })}
+          onCreate={() => setEpicDialog({ mode: 'create' })}
+        />
+      )}
+      {epics.error && (
+        <p
+          role="alert"
+          className="shrink-0 bg-destructive/10 px-6 py-2 text-sm text-destructive"
+        >
+          Couldn’t load the epics: {epics.error.message}
+        </p>
+      )}
 
       {updateTask.error && (
         <p
@@ -110,9 +199,11 @@ function ProjectBoard({ projectId }: { projectId: number }) {
           Couldn’t load the board: {loadError.message}
         </p>
       )}
-      {tasks.data && statuses.data && (
+      {visibleTasks && statuses.data && (
         <Board
-          tasks={tasks.data}
+          tasks={visibleTasks}
+          allTasks={tasks.data ?? []}
+          epics={epics.data ?? []}
           statuses={statuses.data}
           onMove={(id, input) => updateTask.mutate({ id, input })}
           onTaskClick={(task) => setDialog({ mode: 'edit', taskId: task.id })}
@@ -129,6 +220,8 @@ function ProjectBoard({ projectId }: { projectId: number }) {
         <TaskDialog
           projectId={projectId}
           defaultStatusId={dialog.statusId}
+          // With the board filtered to an epic, a new task joins it, so it stays in view.
+          defaultEpicId={typeof epicFilter === 'number' ? epicFilter : null}
           onClose={() => setDialog(null)}
         />
       )}
@@ -138,6 +231,22 @@ function ProjectBoard({ projectId }: { projectId: number }) {
           projectId={projectId}
           task={editing}
           onClose={() => setDialog(null)}
+        />
+      )}
+
+      {epicDialog?.mode === 'create' && (
+        <EpicDialog
+          projectId={projectId}
+          onClose={() => setEpicDialog(null)}
+          onCreated={(epic) => setEpicFilter(epic.id)}
+        />
+      )}
+      {editingEpic && (
+        <EpicDialog
+          key={editingEpic.id}
+          projectId={projectId}
+          epic={editingEpic}
+          onClose={() => setEpicDialog(null)}
         />
       )}
 
