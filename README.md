@@ -9,6 +9,7 @@ Yoke keeps a team's projects, task board and chat in one place. The repo holds t
 
 - **Accounts** – register and log in with email and password. The API returns a JWT, and every endpoint except `/`, `/db-test` and `/auth/*` needs it.
 - **Projects** – create, rename and delete projects. Project reads are cached in Redis for 60 seconds.
+- **Project access** – you only see the projects you are a member of. Whoever creates a project is its owner. The owner adds people by email (`POST /projects/:id/members` with `{"email": "..."}`), removes them (`DELETE /projects/:id/members/:userId`), and is the only one who can delete the project. Any member can list the members (`GET /projects/:id/members`) and work on the board. A request for a project you are not in, or for one of its tasks, columns or epics, gets 404, the same as for one that does not exist.
 - **Task board** – each project has its own columns (statuses). A new project starts with To do, In progress and Done. You can add, rename, recolor, reorder and delete columns, and drag cards within and between columns.
 - **Epics** – group tasks toward a goal, with a color and optional start and end dates. An epic bar above the board shows each epic's progress, and you can filter the board by epic (`?epic=<id>` or `?epic=none` in the URL).
 - **Live updates** – every task, column and epic change goes out over Socket.IO to everyone viewing that project, so open boards stay in sync across tabs, browsers and users.
